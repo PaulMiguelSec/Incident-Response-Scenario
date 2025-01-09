@@ -1,10 +1,14 @@
 # Incident Response Scenario: Detect Web-Request from Powershell
 
+![dataexfiltrationguy](https://github.com/user-attachments/assets/414c1994-1dcd-41e3-aa86-37d815c2f3cc)
+
+
 ## Platforms and Tools Used
 - Windows 10 Virtual Machines (Microsoft Azure)
 - Microsoft Sentinel
-- Endpoint Detection and Response (EDR): Microsoft Defender for Endpoint (MDE)
+- Endpoint Detection and Response (EDR): Microsoft Defender for Endpoint
 - Kusto Query Language (KQL)
+- MITRE ATT&CK Framework
 
 ---
 
