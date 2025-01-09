@@ -27,8 +27,8 @@ DeviceProcessEvents
 ```
 
 **Relevant TTPs:**
-- **T1059.001**: Command and Scripting Interpreter: PowerShell
-- **T1105**: Ingress Tool Transfer
+- **[T1059.001](https://attack.mitre.org/techniques/T1059/001/)**: Command and Scripting Interpreter: PowerShell
+- **[T1105](https://attack.mitre.org/techniques/T1105/)**: Ingress Tool Transfer
 
 ![ir1](https://github.com/user-attachments/assets/1fab327c-eb1c-465a-99d7-83ac5688ca46)
 
@@ -55,9 +55,9 @@ DeviceProcessEvents
 | order by Timestamp
 ```
 
-**Corresponding TTPs:**
-- **T1059.001**: Command and Scripting Interpreter: PowerShell
-- **T1027**: Obfuscated Files or Information
+**Relevant TTPs:**
+- **[T1059.001](https://attack.mitre.org/techniques/T1059/001/)**: Command and Scripting Interpreter: PowerShell
+- **[T1027](https://attack.mitre.org/techniques/T1027/)**: Obfuscated Files or Information
 
 ![processquery](https://github.com/user-attachments/assets/e9197ad7-2365-4bbc-86fb-41a25c40ff57)
 
@@ -86,9 +86,9 @@ DeviceNetworkEvents
 | order by Timestamp
 ```
 
-**Corresponding TTPs:**
-- **T1105**: Ingress Tool Transfer
-- **T1041**: Exfiltration Over C2 Channel
+**Relevant TTPs:**
+- **[T1105](https://attack.mitre.org/techniques/T1105/)**: Ingress Tool Transfer
+- **[T1041](https://attack.mitre.org/techniques/T1041/)**: Exfiltration Over C2 Channel
 
 ![networkquery](https://github.com/user-attachments/assets/6fccbaf5-f771-4ba9-9805-e0baed7ed3de)
 
@@ -113,9 +113,9 @@ DeviceFileEvents
 | order by Timestamp desc
 ```
 
-**Corresponding TTPs:**
-- **T1027**: Obfuscated Files or Information
-- **T1560.001**: Archive Collected Data: Archive via Utility
+**Relevant TTPs:**
+- **[T1027](https://attack.mitre.org/techniques/T1027/)**: Obfuscated Files or Information
+- **[T1560.001](https://attack.mitre.org/techniques/T1560/001/)**: Archive Collected Data: Archive via Utility
 
 **Findings:**
 
