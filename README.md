@@ -168,7 +168,10 @@ These findings confirmed the repeated creation and renaming of ZIP files, consis
 ### Recommendations
 
 1. **Enhance Monitoring**:
-   - Create detection rules for unauthorized archiving tools and large file transfers.
+   - Detection for unauthorized use of PowerShell, including Invoke-WebRequest, is already in place and triggered the investigation.  
+   - Create detection rules for unusual file archiving activity, such as using tools like 7z.exe on sensitive file paths.  
+   - Identify suspicious network connections by flagging high-risk domains or IPs.  
+   - Monitor for frequent or large file transfers to detect potential data exfiltration.  
 
 2. **User Education**:
    - Train users to recognize suspicious activity.
