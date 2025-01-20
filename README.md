@@ -2,6 +2,7 @@
 
 ![dataexfiltrationguy](https://github.com/user-attachments/assets/414c1994-1dcd-41e3-aa86-37d815c2f3cc)
 
+This lab simulates an incident response scenario to detect, analyze, and mitigate malicious activity involving the unauthorized use of PowerShell for data exfiltration. Using platforms such as Microsoft Sentinel, Defender for Endpoint, and KQL, the goal is to identify suspicious activity, contain threats, and implement measures to enhance organizational security posture.
 
 ## Platforms and Tools Used
 - Windows 10 Virtual Machines (Microsoft Azure)
